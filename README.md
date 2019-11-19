@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # RFID-Spool-Selector
 **This is work in progress !!!!!!!!!!**
 
@@ -50,6 +49,3 @@ H -- ID,Name, etc. --> I
 <!--stackedit_data:
 eyJoaXN0b3J5IjpbLTQ1NTc0OTYxLDI3NDkwNzYzNl19
 -->
-=======
-
->>>>>>> 2a38892ffbfb34b74add287b11b9e7fd7b3fe29d
