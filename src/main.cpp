@@ -43,6 +43,12 @@
 #include <WiFi.h>
 #include <TFT_eSPI.h> // Graphics and font library for ST7735 driver chip
 
+#include <WebServer.h>
+#include <AutoConnect.h>
+
+WebServer Server;
+AutoConnect Portal(Server);
+AutoConnectConfig Config;       // Enable autoReconnect supported on v0.9.4
 
 #define DEBUG
 #define TFT_GREY 0x2104 // Dark grey 16 bit colour
@@ -97,8 +103,9 @@ void setup_wifi() {
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
-
-  Serial.print("Connecting to ");
+  Config.autoReconnect = true;
+  Portal.config(Config);
+/*   Serial.print("Connecting to ");
   tft.print("Connecting to ");
   tft.println(ssid);
   Serial.println(ssid);
@@ -108,9 +115,9 @@ void setup_wifi() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-    tft.print(".");
-  }
-
+    tft.print("."); 
+    }*/
+  if (Portal.begin()) {
   randomSeed(micros());
 
   Serial.println("");
@@ -121,6 +128,10 @@ void setup_wifi() {
   tft.println("WiFi connected");
   tft.println("IP address: ");
   tft.println(WiFi.localIP());
+  }
+  
+
+
 }
 
 
@@ -601,6 +612,7 @@ void loop() {
     new_data =true; */
     reconnect();
   }
+    Portal.handleClient();
  if (millis() - runTime >= 2000L) { // Execute every 2s
   runTime = millis(); 
   if(rssi()!=oldRSSI) 
