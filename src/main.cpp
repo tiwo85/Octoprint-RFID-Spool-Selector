@@ -55,8 +55,14 @@ AutoConnectConfig Config;       // Enable autoReconnect supported on v0.9.4
 #define SS_PIN    21
 #define RST_PIN   22
 
-const char* ssid = "???";
-const char* password = "1234567890";
+// Meter colour schemes
+#define RED2RED 0
+#define GREEN2GREEN 1
+#define BLUE2BLUE 2
+#define BLUE2RED 3
+#define GREEN2RED 4
+#define RED2GREEN 5
+
 const char* mqtt_server = "192.168.2.54";
 const char* input1= "octoPrint/filamentManager/currentSpool";
 const char* cmdtopic = "octoPrint/filamentManager/cmd";
@@ -81,6 +87,7 @@ int weight ; // 750
 const char* command; // "selection"
 bool issetup = true;
 bool firststart = true;
+byte left = 0;//left filament in percent
 uint32_t runTime = -99999; 
 byte oldID;
 
@@ -192,8 +199,8 @@ int ringMeter(int value, int vmin, int vmax, int x, int y, int r, char *units, b
 
   int v = map(value, vmin, vmax, -angle, angle); // Map the value to an angle v
 
-  byte seg = 5; // Segments are 5 degrees wide = 60 segments for 300 degrees
-  byte inc = 15; // Draw segments every 5 degrees, increase to 10 for segmented ring
+  byte seg = 6; // Segments are 5 degrees wide = 60 segments for 300 degrees
+  byte inc = 10; // Draw segments every 5 degrees, increase to 10 for segmented ring
 
   // Draw colour blocks every inc degrees
   for (int i = -angle; i < angle; i += inc) {
@@ -289,29 +296,31 @@ byte rssi() {
   rssi_return = 5;
   break;
  }
- return rssi_return; 
+ return rssi_return;
 }
 
 // #########################################################################
 //  Draw Wifi-Signal-Symbol
 // #########################################################################
-void drawWifi(byte x,byte y,uint32_t foreground,uint32_t background){
-//WIFI Status
-  //Wifi SSID
-/*   position = (128.0-(WiFi.SSID().length()*6.0))/2.0;
-  tft.setCursor(position,151);
-  tft.setTextColor(TFT_DARKGREY);
-  tft.setTextSize(1);
-  tft.setTextFont(1);
-  tft.println(WiFi.SSID()); */
-  //RSSI Symbol x= 109 y = 143
+void drawWifi(byte x,byte y,uint32_t foreground,uint32_t background,byte cubes){ 
+  byte rssitest = map(WiFi.RSSI(),-100,-50,0,cubes);
+
+  if(cubes==5){
+    tft.fillRect(x,y+14,3,3,foreground);
+    tft.fillRect(x+4,y+12,3,5,foreground);
+    tft.fillRect(x+8,y+9,3,8,foreground);
+    tft.fillRect(x+12,y+5,3,12,foreground);
+    tft.fillRect(x+16,y,3,17,foreground);
+    tft.fillRect((x+20)-((5-rssitest)*4),y,((5-rssitest)*4), 18, background);
+  }
+  else
+  {
+    tft.fillRect(x,y+5,3,3,foreground);
+    tft.fillRect(x+4,y+3,3,5,foreground);
+    tft.fillRect(x+8,y,3,8,foreground);
+    tft.fillRect((x+(cubes*4))-((cubes-rssitest)*4),y,((cubes-rssitest)*4), 8, background);
+  }
   
-  tft.fillRect(x,y+14,3,3,foreground);
-  tft.fillRect(x+4,y+12,3,5,foreground);
-  tft.fillRect(x+8,y+9,3,8,foreground);
-  tft.fillRect(x+12,y+5,3,12,foreground);
-  tft.fillRect(x+16,y,3,17,foreground);
-  tft.fillRect((x+20)-((5-rssi())*4),y,((5-rssi())*4), 18, background);
 }
 
 // #########################################################################
@@ -358,6 +367,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
  Serial.println(weight);
  Serial.print("command: ");
  Serial.println(command);
+ left = 100-(used * 100 / weight);
+
  #endif
  if(readID==0){
    readID = isID;
@@ -399,13 +410,13 @@ void reconnect() {
 //  Draw Screen
 // #########################################################################
 void displayScreen1(){
-  double position;
+  
   //MQTT Status
   tft.setTextFont(1);
   tft.setTextSize(1);
   tft.setCursor(0, 0);
   tft.setTextColor(TFT_DARKGREY,TFT_BLACK);  
-  tft.setCursor(28,0)  ;
+  tft.setCursor(28,1)  ;
   if(!writingnewID){
     if(AutoUpdate){
       
@@ -420,32 +431,44 @@ void displayScreen1(){
   }
   //-----------Filament Info:
   //tft.drawRoundRect(0,20,128,52,4,TFT_WHITE);
-  tft.fillRect(0,22,128,52,TFT_BLACK);
+  tft.fillRect(0,20,128,140,TFT_BLACK);
   tft.setTextFont(2);
-  tft.setCursor(3, 22);
+  
   if(isID==readID) {
     tft.setTextColor(TFT_WHITE,TFT_BLACK);
   }
   else {
     tft.setTextColor(TFT_YELLOW,TFT_BLACK);
   }
+  tft.setCursor(3, 14);
   char bufferdata[50];
   sprintf(bufferdata,"ID: %3d ",isID);
   tft.println(bufferdata); 
-  /* tft.setTextDatum(2);
-  tft.setCursor(126,22); */
-  tft.drawRightString(String(material),126,22,2);
-  //tft.print(material);
+  tft.drawRightString(String(material),126,14,2);
   tft.setTextDatum(0);
-  tft.setCursor(2,38);
+  tft.setCursor(2,30);
   tft.println(vendor);
-  tft.setCursor(2,54);
+  tft.setCursor(2,46);
   tft.println(name);
-  tft.drawRoundRect(0,20,128,52,4,TFT_WHITE);
-  tft.drawRoundRect(1,21,126,50,4,TFT_BLACK);
-  byte reading = 100;
-  int xpos = 0, ypos = 5, gap = 4, radius = 45;
-/*  xpos = gap + ringMeter(reading, 0, 100, xpos, ypos, radius, "%", RED2GREEN); */
+  // Rechteck
+  tft.drawRoundRect(0,12,128,52,4,TFT_WHITE);
+  tft.drawRoundRect(1,13,126,50,4,TFT_BLACK);
+  int  ypos = 72, gap = 4, radius = 45;
+  int xpos = (128 - (radius*2))/2; //center ringMeter
+  xpos = gap + ringMeter(left, 0, 100, xpos, ypos, radius, "%", RED2GREEN); 
+  tft.setTextFont(1);
+  tft.setTextSize(1);
+  tft.setTextColor(TFT_GREY,TFT_BLACK);
+  tft.setCursor(0,137);
+  tft.print("Used");
+  tft.setCursor(104,137);
+  tft.print("Full");
+  tft.setTextFont(2);
+  tft.setTextSize(1);
+  tft.setTextColor(TFT_WHITE);
+  tft.setCursor(2,147);
+  tft.print((int)used);
+  tft.drawRightString(String((int)weight),127,147,2);
  //drawWifi(109,143);
 
   new_Data = false;
@@ -617,7 +640,7 @@ void loop() {
   runTime = millis(); 
   if(rssi()!=oldRSSI) 
   {
-    drawWifi(109,143,TFT_DARKGREY,TFT_BLACK);
+    drawWifi(115,0,TFT_DARKGREY,TFT_BLACK,3);
     oldRSSI = rssi();
   }
  }

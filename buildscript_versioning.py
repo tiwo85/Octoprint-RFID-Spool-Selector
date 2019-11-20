@@ -17,6 +17,7 @@ with open(FILENAME_VERSIONNR, 'w+') as f:
     print('Version number: {}'.format(version_nr))
 version = str(version_nr) + str(tm.year)[-2:]+('0'+str(tm.month))[-2:]+('0'+str(tm.day))[-2:] + '_'
 
+
 build_no = 0
 try:
     with open(FILENAME_BUILDNO) as f:
@@ -38,6 +39,6 @@ hf = """
 #ifndef VERSION_SHORT
   #define VERSION_SHORT "{}"
 #endif
-""".format(build_no, version+str(build_no), datetime.datetime.now(), version+str(build_no))
+""".format(build_no, version+str(build_no), datetime.datetime.now(), version_nr+str(build_no))
 with open(FILENAME_VERSION_H, 'w+') as f:
     f.write(hf)
