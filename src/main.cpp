@@ -251,10 +251,10 @@ int ringMeter(int value, int vmin, int vmax, int x, int y, int r, char *units, b
   dtostrf(value, len, 0, buf);
 
   // Set the text colour to default
-  tft.setTextColor(TFT_WHITE,TFT_BLACK);
+  //tft.setTextColor(TFT_WHITE,TFT_BLACK);
   /* tft.setTextColor(TFT_WHITE, TFT_BLACK); */
   // Uncomment next line to set the text colour to the last segment value!
-  // tft.setTextColor(text_colour, TFT_BLACK);
+   tft.setTextColor(text_colour, TFT_BLACK);
   
   // Print value, if the meter is large then use big font 6, othewise use 4
   if (r > 41) tft.drawCentreString(buf, x - 5, y - 20, 4); // Value in middle
@@ -453,21 +453,29 @@ void displayScreen1(){
   // Rechteck
   tft.drawRoundRect(0,12,128,52,4,TFT_WHITE);
   tft.drawRoundRect(1,13,126,50,4,TFT_BLACK);
-  int  ypos = 72, gap = 4, radius = 45;
+  int  ypos = 72, gap = 4, radius = 44;
   int xpos = (128 - (radius*2))/2; //center ringMeter
   xpos = gap + ringMeter(left, 0, 100, xpos, ypos, radius, "%", RED2GREEN); 
-  tft.setTextFont(1);
+  
   tft.setTextSize(1);
-  tft.setTextColor(TFT_GREY,TFT_BLACK);
-  tft.setCursor(0,137);
-  tft.print("Used");
-  tft.setCursor(104,137);
-  tft.print("Full");
+  tft.setTextColor(TFT_WHITE);
+  tft.setTextFont(2);
+  tft.setCursor(0,72);
+  tft.print((int)used);
+  tft.setTextFont(1);
+  tft.setTextColor(TFT_DARKGREY,TFT_BLACK);
+  tft.setCursor(0,87);
+  tft.print("used");
+  tft.setCursor(0,140);
+  tft.print("left");
+  tft.setCursor(104,140);
+  tft.print("full");
   tft.setTextFont(2);
   tft.setTextSize(1);
   tft.setTextColor(TFT_WHITE);
   tft.setCursor(2,147);
-  tft.print((int)used);
+  int rest = (int)weight - (int)used;
+  tft.print(rest);
   tft.drawRightString(String((int)weight),127,147,2);
  //drawWifi(109,143);
 
