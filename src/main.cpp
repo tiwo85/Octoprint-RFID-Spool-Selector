@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <version.h>
+#include "credentials.h"
 
 /*
  * --------------------------------------------------------------------------------------------------------------------
@@ -43,12 +44,12 @@
 #include <WiFi.h>
 #include <TFT_eSPI.h> // Graphics and font library for ST7735 driver chip
 
-#include <WebServer.h>
+/* #include <WebServer.h>
 #include <AutoConnect.h>
 
 WebServer Server;
 AutoConnect Portal(Server);
-AutoConnectConfig Config;       // Enable autoReconnect supported on v0.9.4
+AutoConnectConfig Config;        // Enable autoReconnect supported on v0.9.4 */
 
 #define DEBUG
 #define TFT_GREY 0x2104 // Dark grey 16 bit colour
@@ -110,9 +111,9 @@ void setup_wifi() {
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
-  Config.autoReconnect = true;
-  Portal.config(Config);
-/*   Serial.print("Connecting to ");
+  /* Config.autoReconnect = true;
+  Portal.config(Config); */
+  Serial.print("Connecting to ");
   tft.print("Connecting to ");
   tft.println(ssid);
   Serial.println(ssid);
@@ -123,8 +124,8 @@ void setup_wifi() {
     delay(500);
     Serial.print(".");
     tft.print("."); 
-    }*/
-  if (Portal.begin()) {
+    /* }
+  if (Portal.begin()) { */
   randomSeed(micros());
 
   Serial.println("");
@@ -455,7 +456,7 @@ void displayScreen1(){
   tft.drawRoundRect(1,13,126,50,4,TFT_BLACK);
   int  ypos = 72, gap = 4, radius = 44;
   int xpos = (128 - (radius*2))/2; //center ringMeter
-  xpos = gap + ringMeter(left, 0, 100, xpos, ypos, radius, "%", RED2GREEN); 
+  xpos = gap + ringMeter(left, 0, 100, xpos, ypos, radius, "%", 5); 
   
   tft.setTextSize(1);
   tft.setTextColor(TFT_WHITE);
@@ -489,11 +490,14 @@ void setup() {
 	Serial.begin(115200);		// Initialize serial communications with the PC
 	while (!Serial);		// Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4)
 	SPI.begin();			// Init SPI bus
-    tft.init();
+  tft.init();
+  mfrc522.PCD_Init();		// Init MFRC522
+	delay(4);				// Optional delay. Some board do need more time after init to be ready, see Readme
   //tft.setRotation(1);
   tft.fillScreen(TFT_BLACK);
-    tft.setCursor(0, 0, 2);
-  tft.setTextColor(TFT_BLUE);    tft.setTextFont(4);
+  tft.setCursor(0, 0, 2);
+  tft.setTextColor(TFT_BLUE);    
+  tft.setTextFont(4);
   tft.println("Boot");
   tft.setTextColor(TFT_WHITE);
   tft.setTextFont(1);
@@ -505,19 +509,15 @@ void setup() {
   Serial.println(VERSION);
   Serial.print("Build: ");
   Serial.println(BUILD_NUMBER);
+	mfrc522.PCD_DumpVersionToSerial();	// Show details of PCD - MFRC522 Card Reader details
+  tft.print("MFRC522 Ver: 0x");
+  byte readReg = mfrc522.PCD_ReadRegister(mfrc522.VersionReg);
+  tft.println(readReg, HEX);
+  Serial.println(F("Sketch has been started!"));
   setup_wifi();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
   reconnect();
-
-	mfrc522.PCD_Init();		// Init MFRC522
-	delay(4);				// Optional delay. Some board do need more time after init to be ready, see Readme
-	mfrc522.PCD_DumpVersionToSerial();	// Show details of PCD - MFRC522 Card Reader details
-    tft.print("MFRC522 Ver: 0x");
-  byte readReg = mfrc522.PCD_ReadRegister(mfrc522.VersionReg);
-  tft.println(readReg, HEX);
-  Serial.println(F("Sketch has been started!"));
-
   memcpy(buffer,"nID=006",7);
   delay(2000);
   tft.fillScreen(TFT_BLACK);
@@ -643,7 +643,7 @@ void loop() {
     new_data =true; */
     reconnect();
   }
-    Portal.handleClient();
+    //Portal.handleClient();
  if (millis() - runTime >= 2000L) { // Execute every 2s
   runTime = millis(); 
   if(rssi()!=oldRSSI) 
