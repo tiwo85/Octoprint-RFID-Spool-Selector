@@ -1,14 +1,23 @@
 /*
  * -----------------------------------------------------------------------------------------
- *             MFRC522      Arduino       Arduino   Arduino    Arduino          Arduino
- *             Reader/PCD   Uno/101       Mega      Nano v3    Leonardo/Micro   Pro Micro
+ *             MFRC522      ESP32         Display   Encoder
+ *             Reader/PCD   
  * Signal      Pin          Pin           Pin       Pin        Pin              Pin
  * -----------------------------------------------------------------------------------------
- * RST/Reset   RST          9             5         D9         RESET/ICSP-5     RST
- * SPI SS      SDA(SS)      10            53        D10        10               10
- * SPI MOSI    MOSI         11 / ICSP-4   51        D11        ICSP-4           16
- * SPI MISO    MISO         12 / ICSP-1   50        D12        ICSP-1           14
- * SPI SCK     SCK          13 / ICSP-3   52        D13        ICSP-3           15
+ * RST/Reset   RST          22             
+ * RST                      14            RST
+ * SPI SS      SDA(SS)      21            
+ *                          17            CS
+ * SPI MOSI    MOSI         23   
+ * SPI MISO    MISO         19            MISO
+ * SPI SCK     SCK          18            SCLK
+ * DC                       4             DC    
+ * VCC         VCC          3.3V          3.3V/BL   +
+ * GND         GND          GND           GND       GND
+ *                          5V            VCC
+ *                          16                      SW
+ *                          13                      DT
+ *                          5                       CLK
  */
 #include <Arduino.h>
 #include <version.h>
@@ -24,16 +33,13 @@
 
 #include <Encoder.h>
 
-// Change these two numbers to the pins connected to your encoder.
-//   Best Performance: both pins have interrupt capability
-//   Good Performance: only the first pin has interrupt capability
-//   Low Performance:  neither pin has interrupt capability
-Encoder myEnc(13, 5);
-//   avoid using pins with LEDs attached
+
+Encoder myEnc(13, 5);  // If rotation is inverted, change 13 with 5
+
 
 #include <JC_Button.h> 
 
-#define BUTTON_PIN 16
+#define BUTTON_PIN 16  // Button-Pin
 
 Button button(BUTTON_PIN);
 
@@ -72,9 +78,10 @@ bool new_Data = true;
 bool AutoUpdate = true; // true: Autoupdate Filament, depending on stored ID
 bool writingnewID = false;
 bool issetup = true;
+bool notificate = false;
 int maxspools = 0;
 byte state = 0; // Menustate
-byte mode = 1; // 1 - Autoupdate , 2 - Manual , 3 - Writingmode
+byte mode = 1; // 1 - Autoupdate , 2 - Manual , 3 - Writing-Select-mode , 4 - Info , 5 - Writing Mode
 byte menupoint;
 bool firststart = true;
 TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
@@ -107,17 +114,6 @@ MFRC522::StatusCode status; //variable to get card status
                             //Pages 0 to 4 are for special functions.  
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);  // Create MFRC522 instance
-
-/* void buttonPressed()
-{
-  Serial.println("Button Pressed");
-}
-
-void sequenceEllapsed()
-{
-  Serial.println("Double click");
-} */
-
 
 
 void setup_wifi() {
@@ -528,6 +524,35 @@ void displayScreen1(){
    tft.print(rest);
    tft.drawRightString(String((int)weight),127,147,2);
   }
+  else if(mode==3){ //Writing-mode - select ID
+   tft.fillRoundRect(0,72,128,30,4,TFT_YELLOW);
+   tft.fillRoundRect(2,74,124,26,4,TFT_BLACK);
+   tft.setTextColor(TFT_WHITE,TFT_BLACK);
+   tft.setTextFont(1);
+   tft.setCursor(4,77);
+   tft.println("select ID and press");
+   tft.setCursor(4,88);
+   tft.println("OK!");
+   tft.fillRoundRect(38,107,52,52,4,TFT_WHITE);
+   tft.drawRoundRect(40,109,48,48,4,TFT_BLACK);
+   tft.setTextColor(TFT_BLACK,TFT_WHITE);
+   tft.drawCentreString(String(isID),64,120,4);
+  }
+  else if(mode == 5){ //Writing-mode
+   tft.fillRoundRect(0,72,128,30,4,TFT_YELLOW);
+   tft.fillRoundRect(2,74,124,26,4,TFT_BLACK);
+   tft.setTextColor(TFT_WHITE,TFT_BLACK);
+   tft.setTextFont(1);
+   tft.setCursor(3,77);
+   tft.println("waiting for NTag");
+   tft.setCursor(3,88);
+   tft.println("press OK to abort");
+   tft.fillRoundRect(38,107,52,52,4,TFT_WHITE);
+   tft.fillRoundRect(40,109,48,48,4,TFT_BLACK);
+   tft.setTextColor(TFT_RED,TFT_BLACK);
+   tft.drawCentreString(String(isID),64,120,4);
+/*     */
+  }
  }
  else if(state == 1) { // Draw Menu
   tft.fillRoundRect(15,15,96,128,4,TFT_WHITE);
@@ -549,6 +574,18 @@ void displayScreen1(){
 }
 
 // #########################################################################
+//  Display Frame with Alert
+// #########################################################################
+void notification(char* text, uint32_t frame, uint32_t textcolor, uint32_t background){
+  notificate = true;
+tft.fillRoundRect(0,40,128,80,4,frame);
+tft.fillRoundRect(2,42,124,76,4,background);
+tft.setTextColor(textcolor);
+tft.drawCentreString(text,64,75,1);
+runTime = millis();
+}
+
+// #########################################################################
 //  Setup
 // #########################################################################
 void setup() {
@@ -561,13 +598,7 @@ void setup() {
   //tft.setRotation(1);
 
   button.begin();
-/*   button.onPressed(buttonPressed);
-  button.onSequence(2, 1500, sequenceEllapsed); */
- /*  if (button.supportsInterrupt())
-  {
-    button.enableInterrupt(buttonISR);
-    Serial.println("Button will be used through interrupts");
-  } */
+
 
   tft.fillScreen(TFT_BLACK);
     tft.setCursor(0, 0, 2);
@@ -597,7 +628,7 @@ void setup() {
   tft.println(readReg, HEX);
   Serial.println(F("Sketch has been started!"));
 
-  memcpy(buffer,"nID=006",7);
+  //memcpy(buffer,"nID=006",7);
   delay(2000);
   tft.fillScreen(TFT_BLACK);
   client.publish(cmdtopic,"reqmax");
@@ -613,7 +644,10 @@ void writeNTag(){
   // Look for new cards
 
   // Write data ***********************************************
- memcpy(buffer,"nID=006",7);
+ char bufferdata[7];
+  sprintf(bufferdata,"nID:%03d",writeID);
+  Serial.println(bufferdata);
+ memcpy(buffer,bufferdata,7);
 
     for (int i=0; i < 4; i++) {
     //data is writen in blocks of 4 bytes (4 bytes per page)
@@ -621,11 +655,14 @@ void writeNTag(){
     if (status != MFRC522::STATUS_OK) {
       Serial.print(F("MIFARE_Read() failed: "));
       Serial.println(mfrc522.GetStatusCodeName(status));
+      notification("FAIL to write ID",TFT_RED,TFT_WHITE,TFT_BLACK);
       return;
     }
   }
   Serial.println(F("MIFARE_Ultralight_Write() OK "));
+  notification("WRITING OK",TFT_GREEN,TFT_WHITE,TFT_BLACK);
   Serial.println();
+  mode = 1;
   writingnewID = false;
 }
 // #########################################################################
@@ -722,8 +759,9 @@ long oldPosition  = -999;
 
 void loop() {
   //encoder
-  long newPosition = myEnc.read()/ENCODINGS;
-if(state==1){
+if(notificate == false){
+     long newPosition = myEnc.read()/ENCODINGS;
+ if(state==1){ //Menu
     if (newPosition != oldPosition ) {
      if (newPosition >= 4) {
        newPosition = 3;
@@ -738,8 +776,8 @@ if(state==1){
      menupoint = oldPosition;
      new_Data = true;
     }
-}
-else if(state==0 && mode==2){
+ }
+ else if(state==0 && mode==2){ //Manual-Mode
       if (newPosition != oldPosition ) {
      if (newPosition > maxspools) {
        newPosition = maxspools;
@@ -755,8 +793,31 @@ else if(state==0 && mode==2){
      changeSpool();
      new_Data = true;
     }
+ }
+ else if(state==0 && mode==3){ //Writemode-Select
+      if (newPosition != oldPosition ) {
+     if (newPosition > maxspools) {
+       newPosition = maxspools;
+       myEnc.write(maxspools*ENCODINGS);
+     }
+     if (newPosition <= 0) {
+       newPosition = 1;
+       myEnc.write(1*ENCODINGS);
+     }
+     oldPosition = newPosition;
+     Serial.println(newPosition);
+     readID = oldPosition;
+     changeSpool();
+     new_Data = true;
+    }
+ }
+ else if(state==0 && mode == 5){ //Writemode-Writing, but selecting new
+      if (newPosition != oldPosition ) {
+        mode = 3;
+        writingnewID = false;
+      }
+ }
 }
-
 
   //MQTT
   if (!client.connected()) {
@@ -767,7 +828,11 @@ else if(state==0 && mode==2){
   //AutoConnect
     Portal.handleClient();
 
- if (millis() - runTime >= 2000L) { // Execute every 2s
+ if (millis() - runTime >= 3000L) { // Execute every 3s
+  if(notificate==true) {
+    new_Data = true;
+    notificate = false;
+  }
   runTime = millis(); 
   if(rssi()!=oldRSSI) 
   {
@@ -783,17 +848,30 @@ else if(state==0 && mode==2){
 
   button.read();
   // Show Menu
-  if (state == 0  && button.wasPressed() ){
+if(notificate == false){
+  if (state == 0  && button.wasPressed() && mode < 3){ // Button pressed in Auto-/Manual-Mode
     state = 1;
     menupoint = mode;
     new_Data = true;
   }
-  else if (state == 1  && button.wasPressed()){
+  else if (state == 1  && button.wasPressed()){ // Button pressed in Menu
     state = 0;
     mode = menupoint;
-    if(mode==2) myEnc.write(isID*ENCODINGS);
+    if(mode==2 || mode==3) myEnc.write(isID*ENCODINGS);
     new_Data = true;
   }
+  else if (state == 0  && button.wasPressed() && mode == 3 ){ // Button pressed in Write-Select-Mode
+    mode = 5;
+    writeID = isID;
+    writingnewID = true;
+    new_Data = true;
+  }
+  else if (state == 0  && button.wasPressed() && mode == 5){ // Button pressed in Writing-Mode
+    mode = 1;
+    notification("Aborting WriteMode",TFT_BLUE,TFT_WHITE,TFT_BLACK);
+    writingnewID = false;
+  }
+ }
   // Display
   if (new_Data == true) displayScreen1();
  
