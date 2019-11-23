@@ -28,7 +28,7 @@ My 3D Printer stands in the garage and my Laptop is in the Diningroom inhouse. I
 </li>
 </ul>
 <p>Compile Sketch in Arduino or Platformio.</p>
-<h2 id="pinout">Pinout?</h2>
+<h2 id="pinout">Pinout?</h2><pre>
 <code>
   -           MFRC522      ESP32         Display   Encoder
   -           Reader/PCD   
@@ -49,3 +49,4 @@ My 3D Printer stands in the garage and my Laptop is in the Diningroom inhouse. I
   DT          -            13                      DT
   CLK         -            5                       CLK
  </code>
+</pre>
