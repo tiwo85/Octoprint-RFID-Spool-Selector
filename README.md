@@ -23,27 +23,27 @@ My 3D Printer stands in the garage and my Laptop is in the Diningroom inhouse. I
 	 
 Compile Sketch in Arduino or Platformio. 
 
-## How does it works?
-
-
-```mermaid
-graph LR
-AutomaticMode --> A 
-A[RFID-Reader]  -- ID --> Z[ESP32]
-K -- new ID --> A
-Z -- ID is over 255 --> K((write new NTag))
-Z --> J[Display] 
-I[Node-Red] -- ID,Name etc. --> Z
-Z --> B((new Filament<br>ID on NTag ?))
-B -- yes --> E((HTTP-Request))
-B -- no --> F{do nothing} 
-E --> G[Node-Red]
-G -- change Filament --> H[Octoprint]
-H -- ID,Name, etc. --> I
-
-
-```
-
+## Pinout?
+/*
+ * -----------------------------------------------------------------------------------------
+ *             MFRC522      ESP32         Display   Encoder
+ *             Reader/PCD   
+ * Signal      Pin          Pin           Pin       Pin        Pin              Pin
+ * -----------------------------------------------------------------------------------------
+ * RST/Reset   RST          22             
+ * RST                      14            RST
+ * SPI SS      SDA(SS)      21            
+ *                          17            CS
+ * SPI MOSI    MOSI         23   
+ * SPI MISO    MISO         19            MISO
+ * SPI SCK     SCK          18            SCLK
+ * DC                       4             DC    
+ * VCC         VCC          3.3V          3.3V/BL   +
+ * GND         GND          GND           GND       GND
+ *                          5V            VCC
+ *                          16                      SW
+ *                          13                      DT
+ *                          5                       CLK
 
 
 <!--stackedit_data:
