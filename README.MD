@@ -39,16 +39,16 @@ My 3D Printer stands in the garage and my Laptop is in the Diningroom inhouse. I
  * RST/Reset   RST          22
  * RST                      14            RST
  * SPI SS      SDA(SS)      21
- *                          17            CS
+ *             -            17            CS
  * SPI MOSI    MOSI         23
  * SPI MISO    MISO         19            MISO
  * SPI SCK     SCK          18            SCLK
- * DC                       4             DC    
+ * DC          -            4             DC    
  * VCC         VCC          3.3V          3.3V/BL   +
  * GND         GND          GND           GND       GND
- *                          5V            VCC
- *                          16                      SW
- *                          13                      DT
- *                          5                       CLK
+ *             -            5V            VCC
+ *             -            16                      SW
+ *             -            13                      DT
+ *             -            5                       CLK
  */
 </code></pre>
