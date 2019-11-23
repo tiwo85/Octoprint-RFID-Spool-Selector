@@ -1,29 +1,4 @@
-#include <Arduino.h>
-#include <version.h>
-
 /*
- * --------------------------------------------------------------------------------------------------------------------
- * Example sketch/program showing how to read data from a PICC to serial.
- * --------------------------------------------------------------------------------------------------------------------
- * This is a MFRC522 library example; for further details and other examples see: https://github.com/miguelbalboa/rfid
- * 
- * Example sketch/program showing how to read data from a PICC (that is: a RFID Tag or Card) using a MFRC522 based RFID
- * Reader on the Arduino SPI interface.
- * 
- * When the Arduino and the MFRC522 module are connected (see the pin layout below), load this sketch into Arduino IDE
- * then verify/compile and upload it. To see the output: use Tools, Serial Monitor of the IDE (hit Ctrl+Shft+M). When
- * you present a PICC (that is: a RFID Tag or Card) at reading distance of the MFRC522 Reader/PCD, the serial output
- * will show the ID/UID, type and any data blocks it can read. Note: you may see "Timeout in communication" messages
- * when removing the PICC from reading distance too early.
- * 
- * If your reader supports it, this sketch/program will read all the PICCs presented (that is: multiple tag reading).
- * So if you stack two or more PICCs on top of each other and present them to the reader, it will first output all
- * details of the first and then the next PICC. Note that this may take some time as all data blocks are dumped, so
- * keep the PICCs at reading distance until complete.
- * 
- * @license Released into the public domain.
- * 
- * Typical pin layout used:
  * -----------------------------------------------------------------------------------------
  *             MFRC522      Arduino       Arduino   Arduino    Arduino          Arduino
  *             Reader/PCD   Uno/101       Mega      Nano v3    Leonardo/Micro   Pro Micro
@@ -35,7 +10,8 @@
  * SPI MISO    MISO         12 / ICSP-1   50        D12        ICSP-1           14
  * SPI SCK     SCK          13 / ICSP-3   52        D13        ICSP-3           15
  */
-
+#include <Arduino.h>
+#include <version.h>
 #include <SPI.h>
 #include <MFRC522.h>
 #include <ArduinoJson.h>
@@ -46,8 +22,29 @@
 #include <WebServer.h>
 #include <AutoConnect.h>
 
-WebServer Server;
-AutoConnect Portal(Server);
+#include <Encoder.h>
+
+// Change these two numbers to the pins connected to your encoder.
+//   Best Performance: both pins have interrupt capability
+//   Good Performance: only the first pin has interrupt capability
+//   Low Performance:  neither pin has interrupt capability
+Encoder myEnc(13, 5);
+//   avoid using pins with LEDs attached
+
+#include <JC_Button.h> 
+
+#define BUTTON_PIN 16
+
+Button button(BUTTON_PIN);
+
+
+#if defined(ARDUINO_ARCH_ESP8266)
+typedef ESP8266WebServer  WiFiWebServer;
+#elif defined(ARDUINO_ARCH_ESP32)
+typedef WebServer WiFiWebServer;
+#endif
+
+AutoConnect Portal;
 AutoConnectConfig Config;       // Enable autoReconnect supported on v0.9.4
 
 #define DEBUG
@@ -72,6 +69,11 @@ int isID = 0;
 bool new_Data = true;
 bool AutoUpdate = true; // true: Autoupdate Filament, depending on stored ID
 bool writingnewID = false;
+bool issetup = true;
+byte state = 0; // Menustate
+byte mode = 1; // 1 - Autoupdate , 2 - Manual , 3 - Writingmode
+byte menupoint;
+bool firststart = true;
 TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -85,8 +87,6 @@ const char* name ; // "Gelb"
 float used ; // 27.7033317429915
 int weight ; // 750
 const char* command; // "selection"
-bool issetup = true;
-bool firststart = true;
 byte left = 0;//left filament in percent
 uint32_t runTime = -99999; 
 byte oldID;
@@ -104,6 +104,18 @@ MFRC522::StatusCode status; //variable to get card status
                             //Pages 0 to 4 are for special functions.  
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);  // Create MFRC522 instance
+
+/* void buttonPressed()
+{
+  Serial.println("Button Pressed");
+}
+
+void sequenceEllapsed()
+{
+  Serial.println("Double click");
+} */
+
+
 
 void setup_wifi() {
 
@@ -269,6 +281,24 @@ int ringMeter(int value, int vmin, int vmax, int x, int y, int r, char *units, b
   return x + r;
 }
 
+// #########################################################################
+//  Handle Root-Page
+// #########################################################################
+void handleRoot() {
+  String  content =
+    "<html>"
+    "<head>"
+    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+    "</head>"
+    "<body>"
+    "ID: <br>"
+    "<p style=\"padding-top:10px;text-align:center\">" AUTOCONNECT_LINK(COG_24) "</p>"
+    "</body>"
+    "</html>";
+
+  WiFiWebServer&  webServer = Portal.host();
+  webServer.send(200, "text/html", content);
+}
 
 // #########################################################################
 //  Calculate RSSI
@@ -410,25 +440,26 @@ void reconnect() {
 //  Draw Screen
 // #########################################################################
 void displayScreen1(){
-  
-  //MQTT Status
+ if (state ==0){ 
+  tft.fillRoundRect(0,12,128,52,4,TFT_BLACK);
   tft.setTextFont(1);
   tft.setTextSize(1);
   tft.setCursor(0, 0);
   tft.setTextColor(TFT_DARKGREY,TFT_BLACK);  
   tft.setCursor(28,1)  ;
-  if(!writingnewID){
-    if(AutoUpdate){
-      
-      tft.print(" Autoupdate ");
-    }
-    else {
+  switch (mode)
+  {
+  case 1:
+    tft.print(" Autoupdate ");
+    break;
+  case 2:
       tft.print("   Manual   ");
-    }
-  }
-  else {
-    tft.print("Writing Mode");
-  }
+      break;
+  case 3:
+      tft.print("Writing Mode");
+  default:
+    break;
+  } 
   //-----------Filament Info:
   //tft.drawRoundRect(0,20,128,52,4,TFT_WHITE);
   tft.fillRect(0,20,128,140,TFT_BLACK);
@@ -453,32 +484,50 @@ void displayScreen1(){
   // Rechteck
   tft.drawRoundRect(0,12,128,52,4,TFT_WHITE);
   tft.drawRoundRect(1,13,126,50,4,TFT_BLACK);
-  int  ypos = 72, gap = 4, radius = 44;
-  int xpos = (128 - (radius*2))/2; //center ringMeter
-  xpos = gap + ringMeter(left, 0, 100, xpos, ypos, radius, "%", RED2GREEN); 
-  
-  tft.setTextSize(1);
-  tft.setTextColor(TFT_WHITE);
-  tft.setTextFont(2);
-  tft.setCursor(0,72);
-  tft.print((int)used);
-  tft.setTextFont(1);
-  tft.setTextColor(TFT_DARKGREY,TFT_BLACK);
-  tft.setCursor(0,87);
-  tft.print("used");
-  tft.setCursor(0,140);
-  tft.print("left");
-  tft.setCursor(104,140);
-  tft.print("full");
-  tft.setTextFont(2);
-  tft.setTextSize(1);
-  tft.setTextColor(TFT_WHITE);
-  tft.setCursor(2,147);
-  int rest = (int)weight - (int)used;
-  tft.print(rest);
-  tft.drawRightString(String((int)weight),127,147,2);
- //drawWifi(109,143);
 
+  // Show Ringmeter if Audoupdate or manual-mode
+  if(mode <= 2){
+   int  ypos = 72, gap = 4, radius = 44;
+   int xpos = (128 - (radius*2))/2; //center ringMeter
+   xpos = gap + ringMeter(left, 0, 100, xpos, ypos, radius, "%", RED2GREEN); 
+   tft.setTextSize(1);
+   tft.setTextColor(TFT_WHITE);
+   tft.setTextFont(2);
+   tft.setCursor(0,72);
+   tft.print((int)used);
+   tft.setTextFont(1);
+   tft.setTextColor(TFT_DARKGREY,TFT_BLACK);
+   tft.setCursor(0,87);
+   tft.print("used");
+   tft.setCursor(0,140);
+   tft.print("left");
+   tft.setCursor(104,140);
+   tft.print("full");
+   tft.setTextFont(2);
+   tft.setTextSize(1);
+   tft.setTextColor(TFT_WHITE);
+   tft.setCursor(2,147);
+   int rest = (int)weight - (int)used;
+   tft.print(rest);
+   tft.drawRightString(String((int)weight),127,147,2);
+  }
+ }
+ else if(state == 1) { // Draw Menu
+  tft.fillRoundRect(15,15,96,128,4,TFT_WHITE);
+  tft.drawRoundRect(16,16,94,126,4,TFT_BLACK);
+  tft.setTextColor(TFT_RED);
+  tft.drawCentreString("Menu",64,17,4);
+  tft.setTextColor(TFT_BLACK);
+  tft.setCursor(26,40);
+  tft.setTextFont(2);
+  tft.println("Autoupdate");
+  tft.setCursor(26,56);
+  tft.println("Manual");
+  tft.setCursor(26,72);
+  tft.println("Writing");
+  tft.setCursor(18,24+(menupoint*16));
+  tft.print(">");
+ }
   new_Data = false;
 }
 
@@ -486,11 +535,23 @@ void displayScreen1(){
 //  Setup
 // #########################################################################
 void setup() {
+
+    
 	Serial.begin(115200);		// Initialize serial communications with the PC
 	while (!Serial);		// Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4)
 	SPI.begin();			// Init SPI bus
     tft.init();
   //tft.setRotation(1);
+
+  button.begin();
+/*   button.onPressed(buttonPressed);
+  button.onSequence(2, 1500, sequenceEllapsed); */
+ /*  if (button.supportsInterrupt())
+  {
+    button.enableInterrupt(buttonISR);
+    Serial.println("Button will be used through interrupts");
+  } */
+
   tft.fillScreen(TFT_BLACK);
     tft.setCursor(0, 0, 2);
   tft.setTextColor(TFT_BLUE);    tft.setTextFont(4);
@@ -509,7 +570,8 @@ void setup() {
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
   reconnect();
-
+  WiFiWebServer&  webServer = Portal.host();
+  webServer.on("/", handleRoot);
 	mfrc522.PCD_Init();		// Init MFRC522
 	delay(4);				// Optional delay. Some board do need more time after init to be ready, see Readme
 	mfrc522.PCD_DumpVersionToSerial();	// Show details of PCD - MFRC522 Card Reader details
@@ -523,6 +585,8 @@ void setup() {
   tft.fillScreen(TFT_BLACK);
   new_Data = true;
   issetup = false;
+
+
 }
 // #########################################################################
 //  Writing Handle for NTag
@@ -637,13 +701,44 @@ void computeNTag(){
 // #########################################################################
 //  Loop
 // #########################################################################
+long oldPosition  = -999;
+
 void loop() {
+  //encoder
+  long newPosition = myEnc.read()/4;
+  switch (state)
+  {
+  case 1:
+    if (newPosition != oldPosition ) {
+     if (newPosition >= 4) {
+       newPosition = 3;
+       myEnc.write(12);
+     }
+     if (newPosition <= 0) {
+       newPosition = 1;
+       myEnc.write(4);
+     }
+     oldPosition = newPosition;
+     Serial.println(newPosition);
+     menupoint = oldPosition;
+     new_Data = true;
+    }
+    break;
+  
+  default:
+    break;
+  }
+
+
+  //MQTT
   if (!client.connected()) {
   /*     tft.fillCircle(5,154,2,TFT_RED);
     new_data =true; */
     reconnect();
   }
+  //AutoConnect
     Portal.handleClient();
+
  if (millis() - runTime >= 2000L) { // Execute every 2s
   runTime = millis(); 
   if(rssi()!=oldRSSI) 
@@ -652,10 +747,25 @@ void loop() {
     oldRSSI = rssi();
   }
  }
-  computeNTag();
 
+ //NTag
+  computeNTag();
+ //MQTT
   client.loop();
 
+  button.read();
+  // Show Menu
+  if (state == 0  && button.wasPressed() ){
+    state = 1;
+    menupoint = mode;
+    new_Data = true;
+  }
+  else if (state == 1  && button.wasPressed()){
+    state = 0;
+    mode = menupoint;
+    new_Data = true;
+  }
+  // Display
   if (new_Data == true) displayScreen1();
  
 }
