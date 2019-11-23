@@ -47,7 +47,7 @@ typedef WebServer WiFiWebServer;
 AutoConnect Portal;
 AutoConnectConfig Config;       // Enable autoReconnect supported on v0.9.4
 
-#define DEBUG
+//#define DEBUG
 #define TFT_GREY 0x2104 // Dark grey 16 bit colour
 #define SS_PIN    21
 #define RST_PIN   22
@@ -59,9 +59,11 @@ AutoConnectConfig Config;       // Enable autoReconnect supported on v0.9.4
 #define BLUE2RED 3
 #define GREEN2RED 4
 #define RED2GREEN 5
+#define ENCODINGS 4 //Number of recognized ticks from encoder
 
 const char* mqtt_server = "192.168.2.54";
 const char* input1= "octoPrint/filamentManager/currentSpool";
+const char* input2= "octoPrint/filamentManager/maxSpools";
 const char* cmdtopic = "octoPrint/filamentManager/cmd";
 int readID = 0;
 int writeID = 0;
@@ -70,6 +72,7 @@ bool new_Data = true;
 bool AutoUpdate = true; // true: Autoupdate Filament, depending on stored ID
 bool writingnewID = false;
 bool issetup = true;
+int maxspools = 0;
 byte state = 0; // Menustate
 byte mode = 1; // 1 - Autoupdate , 2 - Manual , 3 - Writingmode
 byte menupoint;
@@ -366,6 +369,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print((char)payload[i]);
   }
   Serial.println();
+  if (strcmp(topic,input1)==0){
  const size_t capacity = JSON_OBJECT_SIZE(8) + 100;
  DynamicJsonDocument doc(capacity);
 
@@ -397,9 +401,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
  Serial.println(weight);
  Serial.print("command: ");
  Serial.println(command);
+  #endif
  left = 100-(used * 100 / weight);
-
- #endif
  if(readID==0){
    readID = isID;
  }
@@ -407,7 +410,20 @@ void callback(char* topic, byte* payload, unsigned int length) {
  new_Data = true;
  oldID = isID;
  }
-  
+  }
+  else if(strcmp(topic,input2)==0){
+/*    Serial.println("input 2");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  } */
+  Serial.println();
+  payload[length] = '\0';
+  String s = String((char*)payload);
+  maxspools = s.toInt(); 
+  new_Data = true;
+/*   Serial.print("Number of Spools: ");
+  Serial.println(maxspools); */
+  }
 } 
 void reconnect() {
   // Loop until we're reconnected
@@ -423,7 +439,8 @@ void reconnect() {
       if(issetup) tft.println("connected");
       // Once connected, publish an announcement...
       // ... and resubscribe
-      client.subscribe("octoPrint/filamentManager/currentSpool");            
+      client.subscribe(input1);
+      client.subscribe(input2);
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -473,7 +490,7 @@ void displayScreen1(){
   }
   tft.setCursor(3, 14);
   char bufferdata[50];
-  sprintf(bufferdata,"ID: %3d ",isID);
+  sprintf(bufferdata,"ID: %3d/%3d",isID,maxspools);
   tft.println(bufferdata); 
   tft.drawRightString(String(material),126,14,2);
   tft.setTextDatum(0);
@@ -583,6 +600,7 @@ void setup() {
   memcpy(buffer,"nID=006",7);
   delay(2000);
   tft.fillScreen(TFT_BLACK);
+  client.publish(cmdtopic,"reqmax");
   new_Data = true;
   issetup = false;
 
@@ -684,15 +702,14 @@ void computeNTag(){
   if(writingnewID==true){
     writeNTag();
   }
-
+  if(mode==1){
   readNTag();
+  
 
   if(readID > 255 or readID < -255){
     writeNTag();
     readNTag();
   }
-
-   if(AutoUpdate==true) {
      changeSpool();
    }
  mfrc522.PICC_HaltA();
@@ -705,29 +722,40 @@ long oldPosition  = -999;
 
 void loop() {
   //encoder
-  long newPosition = myEnc.read()/4;
-  switch (state)
-  {
-  case 1:
+  long newPosition = myEnc.read()/ENCODINGS;
+if(state==1){
     if (newPosition != oldPosition ) {
      if (newPosition >= 4) {
        newPosition = 3;
-       myEnc.write(12);
+       myEnc.write(3*ENCODINGS);
      }
      if (newPosition <= 0) {
        newPosition = 1;
-       myEnc.write(4);
+       myEnc.write(1*ENCODINGS);
      }
      oldPosition = newPosition;
      Serial.println(newPosition);
      menupoint = oldPosition;
      new_Data = true;
     }
-    break;
-  
-  default:
-    break;
-  }
+}
+else if(state==0 && mode==2){
+      if (newPosition != oldPosition ) {
+     if (newPosition > maxspools) {
+       newPosition = maxspools;
+       myEnc.write(maxspools*ENCODINGS);
+     }
+     if (newPosition <= 0) {
+       newPosition = 1;
+       myEnc.write(1*ENCODINGS);
+     }
+     oldPosition = newPosition;
+     Serial.println(newPosition);
+     readID = oldPosition;
+     changeSpool();
+     new_Data = true;
+    }
+}
 
 
   //MQTT
@@ -763,6 +791,7 @@ void loop() {
   else if (state == 1  && button.wasPressed()){
     state = 0;
     mode = menupoint;
+    if(mode==2) myEnc.write(isID*ENCODINGS);
     new_Data = true;
   }
   // Display
