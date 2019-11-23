@@ -31,24 +31,22 @@ My 3D Printer stands in the garage and my Laptop is in the Diningroom inhouse. I
 <h2 id="pinout">Pinout?</h2>
 <pre><code>
 
-/*
- *             MFRC522      ESP32         Display   Encoder
- *             Reader/PCD   
- * Signal      Pin          Pin           Pin       Pin     
- * ---------------------------------------------------------
- * RST/Reset   RST          22
- * RST                      14            RST
- * SPI SS      SDA(SS)      21
- * CS          -            17            CS
- * SPI MOSI    MOSI         23
- * SPI MISO    MISO         19            MISO
- * SPI SCK     SCK          18            SCLK
- * DC          -            4             DC    
- * VCC         VCC          3.3V          3.3V/BL   +
- * GND         GND          GND           GND       GND
- * 5V          -            5V            VCC
- * SW          -            16                      SW
- * DT          -            13                      DT
- * CLK         -            5                       CLK
- */
-</code></pre>
+  -           MFRC522      ESP32         Display   Encoder
+  -           Reader/PCD   
+  Signal      Pin          Pin           Pin       Pin     
+  ---------------------------------------------------------
+  RST/Reset   RST          22
+  RST                      14            RST
+  SPI SS      SDA(SS)      21
+  CS          -            17            CS
+  SPI MOSI    MOSI         23
+  SPI MISO    MISO         19            MISO
+  SPI SCK     SCK          18            SCLK
+  DC          -            4             DC    
+  VCC         VCC          3.3V          3.3V/BL   +
+  GND         GND          GND           GND       GND
+  5V          -            5V            VCC
+  SW          -            16                      SW
+  DT          -            13                      DT
+  CLK         -            5                       CLK
+ </code></pre>
