@@ -29,8 +29,7 @@ My 3D Printer stands in the garage and my Laptop is in the Diningroom inhouse. I
 </ul>
 <p>Compile Sketch in Arduino or Platformio.</p>
 <h2 id="pinout">Pinout?</h2>
-<pre><code>
-
+<code>
   -           MFRC522      ESP32         Display   Encoder
   -           Reader/PCD   
   Signal      Pin          Pin           Pin       Pin     
@@ -49,4 +48,4 @@ My 3D Printer stands in the garage and my Laptop is in the Diningroom inhouse. I
   SW          -            16                      SW
   DT          -            13                      DT
   CLK         -            5                       CLK
- </code></pre>
+ </code>
