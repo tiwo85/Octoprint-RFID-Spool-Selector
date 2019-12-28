@@ -38,8 +38,8 @@ My 3D Printer stands in the garage and my Laptop is in the Diningroom inhouse. I
   RST                      14            RST
   SPI SS      SDA(SS)      21
   CS          -            17            CS
-  SPI MOSI    MOSI         23
-  SPI MISO    MISO         19            MISO
+  SPI MOSI    MOSI         23            DIN
+  SPI MISO    MISO         19            
   SPI SCK     SCK          18            SCLK
   DC          -            4             DC    
   VCC         VCC          3.3V          3.3V/BL   +
