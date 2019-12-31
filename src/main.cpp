@@ -32,16 +32,24 @@
 #include <AutoConnect.h>
 
 #include <Encoder.h>
-
-
 Encoder myEnc(13, 5);  // If rotation is inverted, change 13 with 5
 
 
 #include <JC_Button.h> 
-
 #define BUTTON_PIN 16  // Button-Pin
-
 Button button(BUTTON_PIN);
+
+#include <Adafruit_NeoPixel.h>
+#define PIN        12 // On Trinket or Gemma, suggest changing this to 1
+
+// How many NeoPixels are attached to the Arduino?
+#define NUMPIXELS 1 // Popular NeoPixel ring size
+
+// When setting up the NeoPixel library, we tell it how many pixels,
+// and which pin to use to send signals. Note that for older NeoPixel
+// strips you might need to change the third parameter -- see the
+// strandtest example for more information on possible values.
+Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_RGB + NEO_KHZ400);
 
 
 #if defined(ARDUINO_ARCH_ESP8266)
@@ -195,6 +203,23 @@ unsigned int rainbow(byte value) {
 //  Draw the meter on the screen, returns x coord of righthand side
 // #########################################################################
 
+void hexToRGB(uint16_t hexValue)
+{
+
+unsigned r = (hexValue & 0xF800) >> 11;
+unsigned g = (hexValue & 0x07E0) >> 5;
+unsigned b = hexValue & 0x001F;
+
+r = (r * 255) / 31;
+g = (g * 255) / 63;
+b = (b * 255) / 31;
+#ifdef DEBUG
+    printf("r: %d, g: %d, b: %d\n",r, g, b);
+#endif
+pixels.setPixelColor(0,pixels.Color(r, g, b));
+pixels.show();
+}
+
 int ringMeter(int value, int vmin, int vmax, int x, int y, int r, char *units, byte scheme)
 {
   // Minimum value of r is about 52 before value text intrudes on ring
@@ -266,7 +291,11 @@ int ringMeter(int value, int vmin, int vmax, int x, int y, int r, char *units, b
   /* tft.setTextColor(TFT_WHITE, TFT_BLACK); */
   // Uncomment next line to set the text colour to the last segment value!
    tft.setTextColor(text_colour, TFT_BLACK);
-  
+   #ifdef DEBUG
+   Serial.print("Text_Clour:");
+   Serial.println(text_colour);
+   #endif
+  hexToRGB(text_colour);
   // Print value, if the meter is large then use big font 6, othewise use 4
   if (r > 41) tft.drawCentreString(buf, x - 5, y - 20, 4); // Value in middle
   else tft.drawCentreString(buf, x - 5, y - 20, 2); // Value in middle
@@ -596,11 +625,23 @@ void setup() {
 	SPI.begin();			// Init SPI bus
     tft.init();
   //tft.setRotation(1);
-
-  button.begin();
-
-
   tft.fillScreen(TFT_BLACK);
+  button.begin();
+  pixels.begin();
+  pixels.clear();
+  delay(500);   
+   pixels.setPixelColor(0, pixels.Color(255, 0, 0));
+    pixels.show();   // Send the updated pixel colors to the hardware.
+  delay(1000);
+      pixels.setPixelColor(0, pixels.Color(0, 255, 0));
+    pixels.show();   // Send the updated pixel colors to the hardware.
+  delay(1000);
+    pixels.setPixelColor(0, pixels.Color(0, 0, 255));
+    pixels.show();   // Send the updated pixel colors to the hardware.
+  delay(1000);
+  pixels.clear();
+  pixels.show();
+  
     tft.setCursor(0, 0, 2);
   tft.setTextColor(TFT_BLUE);    tft.setTextFont(4);
   tft.println("Boot");
