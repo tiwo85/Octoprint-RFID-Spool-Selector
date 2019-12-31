@@ -7,7 +7,7 @@ My 3D Printer stands in the garage and my Laptop is in the Diningroom inhouse. I
 <ul>
 <li>ESP32-Dev Board</li>
 <li>MFRC522 RFID Reader</li>
-<li>ST7735 SPI 1.8 TFT</li>
+<li><a href="https://a.aliexpress.com/rGSSPaPeF">ST7735 SPI 1.8 TFT</a></li>
 <li>Rotary Encoder</li>
 <li>NTag-RFID Tags</li>
 </ul>
@@ -38,8 +38,8 @@ My 3D Printer stands in the garage and my Laptop is in the Diningroom inhouse. I
   RST                      14            RST
   SPI SS      SDA(SS)      21
   CS          -            17            CS
-  SPI MOSI    MOSI         23
-  SPI MISO    MISO         19            MISO
+  SPI MOSI    MOSI         23            DIN
+  SPI MISO    MISO         19            
   SPI SCK     SCK          18            SCLK
   DC          -            4             DC    
   VCC         VCC          3.3V          3.3V/BL   +
